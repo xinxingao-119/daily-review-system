@@ -1,0 +1,109 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  name          String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  reviews       Review[]
+  notes         Note[]
+  reminders     Reminder[]
+  goals         Goal[]
+}
+
+model Review {
+  id              String    @id @default(cuid())
+  userId          String
+  date            DateTime  // 复盘日期
+  workCompleted   String    @default("")  // 今日完成的工作
+  problems        String    @default("")  // 遇到的问题
+  tomorrowPlan    String    @default("")  // 明日计划
+  reflections     String    @default("")  // 反思/感悟
+  status          String    @default("draft")  // draft, completed
+  wordCount       Int       @default(0)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model Note {
+  id              String    @id @default(cuid())
+  userId          String
+  content         String    // 笔记内容
+  tags            String    @default("[]")  // JSON 字符串存储标签数组
+  goalId          String?   // 关联的目标
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal            Goal?     @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  editHistory     EditHistory[]
+  
+  @@index([userId, createdAt])
+}
+
+model EditHistory {
+  id              String    @id @default(cuid())
+  noteId          String
+  content         String    // 历史版本内容
+  createdAt       DateTime  @default(now())
+  
+  note            Note      @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  
+  @@index([noteId, createdAt])
+}
+
+model Reminder {
+  id              String    @id @default(cuid())
+  userId          String
+  content         String    // 提醒内容
+  remindAt        DateTime  // 提醒时间
+  recurrence      String?   // null, daily, weekly, monthly
+  status          String    @default("pending")  // pending, triggered, completed, expired
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, remindAt])
+  @@index([userId, status])
+}
+
+model Goal {
+  id              String    @id @default(cuid())
+  userId          String
+  name            String    // 目标名称
+  description     String    @default("")  // 目标描述
+  deadline        DateTime? // 截止日期
+  priority        String    @default("medium")  // low, medium, high
+  progress        Int       @default(0)  // 0-100
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes           Note[]
+  
+  @@index([userId, deadline])
+  @@index([userId, priority])
+}
